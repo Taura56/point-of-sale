@@ -864,14 +864,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
-          const DrawerHeader(
+          DrawerHeader(
             decoration: BoxDecoration(color: Color(0xFF1565C0)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Icon(Icons.business, color: Colors.white, size: 40),
-                SizedBox(height: 10),
+                Image.asset(
+                  'assets/app_logo.png',
+                  width: 48,
+                  height: 48,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 10),
                 Text(
                   'Business Manager',
                   style: TextStyle(

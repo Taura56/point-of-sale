@@ -137,7 +137,12 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.business_center, size: 52, color: Color(0xFF1565C0)),
+          Image.asset(
+            'assets/app_logo.png',
+            width: 64,
+            height: 64,
+            fit: BoxFit.contain,
+          ),
           const SizedBox(height: 14),
           const Text(
             'Create your account',
