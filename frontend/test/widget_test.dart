@@ -4,6 +4,7 @@ import 'package:frontend/main.dart';
 import 'package:frontend/screens/product_sales_screen.dart';
 import 'package:frontend/screens/repair_jobs_screen.dart';
 import 'package:frontend/screens/login_screen.dart';
+import 'package:frontend/screens/account_creation_screen.dart';
 import 'package:frontend/screens/inventory_screen.dart';
 import 'package:frontend/screens/reports_screen.dart';
 import 'package:frontend/screens/settings_screen.dart';
@@ -39,6 +40,20 @@ void main() {
     expect(find.text('Email address'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
     expect(find.widgetWithText(ElevatedButton, 'LOGIN'), findsOneWidget);
+  });
+
+  testWidgets('login screen opens account creation form', (tester) async {
+    await _pumpAppWithoutNetwork(tester);
+
+    await tester.ensureVisible(find.text("Don't have an account? Create one"));
+    await tester.tap(find.text("Don't have an account? Create one"));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AccountCreationScreen), findsOneWidget);
+    expect(find.text('Create your account'), findsOneWidget);
+    expect(find.text('Full name'), findsOneWidget);
+    expect(find.text('Business name'), findsOneWidget);
+    expect(find.text('Confirm password'), findsOneWidget);
   });
 
   testWidgets('quick sale opens a dialog instead of the sales page', (

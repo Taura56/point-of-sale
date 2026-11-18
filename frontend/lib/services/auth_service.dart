@@ -3,6 +3,24 @@ import 'token_service.dart';
 import '../config/api_config.dart';
 
 class AuthService {
+  static Future<void> register({
+    required String fullName,
+    required String email,
+    required String password,
+    required String businessName,
+    required String businessType,
+    String? phone,
+  }) async {
+    await ApiService.post(ApiConfig.registerEndpoint, {
+      'fullName': fullName,
+      'email': email,
+      'password': password,
+      'businessName': businessName,
+      'businessType': businessType,
+      if (phone != null && phone.isNotEmpty) 'phone': phone,
+    });
+  }
+
   static Future<Map<String, dynamic>> login({
     required String email,
     required String password,
