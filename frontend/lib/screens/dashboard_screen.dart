@@ -416,7 +416,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             crossAxisCount: columns,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: isWide ? 1.5 : 1.25,
+            childAspectRatio: isWide
+                ? 1.5
+                : columns == 2
+                ? 0.95
+                : 1.25,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             children: regularMetrics.map(_buildMetricCard).toList(),
@@ -950,12 +954,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  value,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (additionalContent != null) ...[

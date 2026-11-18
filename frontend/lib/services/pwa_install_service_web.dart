@@ -1,7 +1,7 @@
 import 'dart:js_interop';
 
 @JS('businessManagerPwaInstall.isInstalled')
-external JSBoolean get _isPwaInstalled;
+external JSBoolean _isPwaInstalled();
 
 @JS('businessManagerPwaInstall.promptInstall')
 external JSPromise<JSString> _promptPwaInstall();
@@ -9,7 +9,7 @@ external JSPromise<JSString> _promptPwaInstall();
 enum PwaInstallResult { accepted, dismissed, manual, alreadyInstalled }
 
 class PwaInstallService {
-  bool get isInstalled => _isPwaInstalled.toDart;
+  bool get isInstalled => _isPwaInstalled().toDart;
 
   Future<PwaInstallResult> promptInstall() async {
     final outcome = (await _promptPwaInstall().toDart).toDart;
