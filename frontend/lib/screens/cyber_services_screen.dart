@@ -561,7 +561,7 @@ class _CyberServicesScreenState extends State<CyberServicesScreen> {
             const SizedBox(width: 20),
             Flexible(
               child: Text(
-                '${_dateSelection.totalLabel}: ${isLoadingProductSales || productSalesError != null ? '—' : _formatCurrency(_dateSelection.totalFor(productSales, 'totalAmount'))}',
+                'Total profit: ${isLoadingProductSales || productSalesError != null ? '—' : _formatCurrency(_dateSelection.totalFor(productSales, 'profitAmount'))}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.end,
@@ -626,7 +626,7 @@ class _CyberServicesScreenState extends State<CyberServicesScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         trailing: Text(
-          'Total: ${_formatCurrency(sale['totalAmount'])}',
+          'Profit: ${_formatCurrency(sale['profitAmount'])}',
           style: const TextStyle(
             color: Color(0xFF1565C0),
             fontWeight: FontWeight.bold,

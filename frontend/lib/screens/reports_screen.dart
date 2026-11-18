@@ -145,6 +145,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return total;
   }
 
+  double _salesAmount(dynamic record) {
+    if (record is! Map) return 0;
+    return _amount(
+      record.containsKey('productName')
+          ? record['profitAmount']
+          : record['totalAmount'],
+    );
+  }
+
   String _formatCurrency(num value) {
     final amount = value.toDouble();
     final formattedAmount = amount % 1 == 0
@@ -272,7 +281,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget _buildSummaryCards() {
     final income =
         _sum(_paidTransactions, 'totalAmount') +
-        _sum(_paidProductSales, 'totalAmount') +
+        _sum(_paidProductSales, 'profitAmount') +
         _sum(_filteredServiceEntries, 'totalPrice') +
         _sum(_filteredRepairJobs, 'amountPaid');
     final expenseTotal = _dateSelection.totalFor(
@@ -307,9 +316,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         SizedBox(
           width: cardWidth,
           child: _buildMetricCard(
-            title: incomeIncomplete
-                ? 'Total Collected (partial)'
-                : 'Total Collected',
+            title: incomeIncomplete ? 'Total Income (partial)' : 'Total Income',
             value: _formatCurrency(income),
             icon: Icons.trending_up,
             color: const Color(0xFF1565C0),
@@ -343,7 +350,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 20),
       child: Text(
-        'After expenses is not net profit; product costs are not deducted.',
+        'After expenses is an estimate; other operating costs may not be fully accounted for.',
         style: TextStyle(color: Colors.blueGrey.shade700, fontSize: 12),
       ),
     );
@@ -385,6 +392,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     required List<dynamic> records,
     required String amountField,
     String? countLabel,
+    double? amountOverride,
   }) {
     if (sectionErrors.containsKey(section)) {
       return _buildDataError(section);
@@ -418,7 +426,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
           const SizedBox(width: 12),
           Text(
-            _formatCurrency(_sum(records, amountField)),
+            _formatCurrency(amountOverride ?? _sum(records, amountField)),
             textAlign: TextAlign.end,
             style: const TextStyle(
               color: Color(0xFF1565C0),
@@ -440,10 +448,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
         countLabel: 'paid',
       ),
       _buildFinancialRow(
-        title: 'Product sales',
+        title: 'Product sales profit',
         section: 'product sales',
         records: _paidProductSales,
-        amountField: 'totalAmount',
+        amountField: 'profitAmount',
         countLabel: 'paid',
       ),
       _buildFinancialRow(
@@ -640,8 +648,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       final method = record['paymentMethod']?.toString() ?? 'other';
       totals.update(
         method,
-        (total) => total + _amount(record['totalAmount']),
-        ifAbsent: () => _amount(record['totalAmount']),
+        (total) => total + _salesAmount(record),
+        ifAbsent: () => _salesAmount(record),
       );
     }
 
@@ -676,6 +684,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ],
           amountField: 'totalAmount',
           countLabel: 'paid',
+          amountOverride: entry.value,
         );
       }).toList(),
     );
@@ -703,8 +712,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       counts.update(status, (count) => count + 1, ifAbsent: () => 1);
       amounts.update(
         status,
-        (total) => total + _amount(record['totalAmount']),
-        ifAbsent: () => _amount(record['totalAmount']),
+        (total) => total + _salesAmount(record),
+        ifAbsent: () => _salesAmount(record),
       );
     }
 
@@ -920,11 +929,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           _buildPaymentMethods(),
                           _buildPaymentStatuses(),
                           _buildRankedCard(
-                            title: 'Top Product Sales',
+                            title: 'Top Product Sales by Profit',
                             section: 'product sales',
                             records: _paidProductSales,
                             labelField: 'productName',
-                            amountField: 'totalAmount',
+                            amountField: 'profitAmount',
                             fallbackField: 'item',
                           ),
                           _buildRankedCard(

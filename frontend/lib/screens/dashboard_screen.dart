@@ -1,6 +1,11 @@
+import 'dart:convert';
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../services/api_service.dart';
+import '../services/pwa_install_service.dart';
 import '../services/token_service.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
@@ -31,7 +36,33 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const List<_DashboardMetric> _displayOptions = [];
+  static const List<_DashboardMetric> _displayOptions = [
+    _DashboardMetric(
+      key: 'dailyTotalMoney',
+      label: "Today's Total Money",
+      icon: Icons.payments_outlined,
+    ),
+    _DashboardMetric(
+      key: 'lowStockItems',
+      label: 'Low Stock Items',
+      icon: Icons.warning_amber_outlined,
+    ),
+    _DashboardMetric(
+      key: 'weeklyTithe',
+      label: 'Weekly Tithe (10%)',
+      icon: Icons.volunteer_activism_outlined,
+    ),
+    _DashboardMetric(
+      key: 'weeklyOperatingProfit',
+      label: 'Operating Profit',
+      icon: Icons.bar_chart,
+    ),
+    _DashboardMetric(
+      key: 'dailyExpenses',
+      label: "Today's Expenses",
+      icon: Icons.money_off,
+    ),
+  ];
 
   Map<String, dynamic>? dashboardData;
   Map<String, dynamic>? businessInfo;
@@ -40,12 +71,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool isLoading = true;
   bool isSavingDisplays = false;
   bool dashboardStatsForbidden = false;
+  bool _isPwaInstalled = false;
   String? errorMessage;
+  final _pwaInstallService = PwaInstallService();
 
   @override
   void initState() {
     super.initState();
+    _isPwaInstalled = _pwaInstallService.isInstalled;
     loadDashboard();
+  }
+
+  Future<void> _installApp() async {
+    final result = await _pwaInstallService.promptInstall();
+    if (!mounted) return;
+
+    switch (result) {
+      case PwaInstallResult.accepted:
+      case PwaInstallResult.alreadyInstalled:
+        setState(() => _isPwaInstalled = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Business Manager is installed.')),
+        );
+      case PwaInstallResult.dismissed:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('App installation was dismissed.')),
+        );
+      case PwaInstallResult.manual:
+        await showDialog<void>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Install Business Manager'),
+            content: const Text(
+              'Android Chrome: Open the menu (⋮) and choose “Install app” '
+              'or “Add to Home screen”.\n\n'
+              'iPhone or iPad Safari: Tap Share, then “Add to Home Screen”.\n\n'
+              'Desktop: Use the install icon in the address bar or choose '
+              '“Install Business Manager” from the browser menu.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('CLOSE'),
+              ),
+            ],
+          ),
+        );
+    }
   }
 
   Future<void> refreshDashboard() async {
@@ -117,8 +189,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       });
 
       requestingDashboardStats = true;
+      final today = DateTime.now();
+      final dayStart = DateTime(today.year, today.month, today.day);
+      final dayEnd = DateTime(today.year, today.month, today.day + 1);
+      final weekStart = DateTime(
+        dayStart.year,
+        dayStart.month,
+        dayStart.day - dayStart.weekday % 7,
+      );
+      final weekBoundaries = List.generate(
+        8,
+        (index) => DateTime(
+          weekStart.year,
+          weekStart.month,
+          weekStart.day + index,
+        ).toUtc().toIso8601String(),
+      );
+      final dashboardEndpoint =
+          '/businesses/$businessId/dashboard'
+          '?dayStart=${Uri.encodeQueryComponent(dayStart.toUtc().toIso8601String())}'
+          '&dayEnd=${Uri.encodeQueryComponent(dayEnd.toUtc().toIso8601String())}'
+          '&weekBoundaries=${Uri.encodeQueryComponent(jsonEncode(weekBoundaries))}';
       final responses = await Future.wait([
-        ApiService.get('/businesses/$businessId/dashboard', token: token),
+        ApiService.get(dashboardEndpoint, token: token),
         ApiService.get(
           '/businesses/$businessId/dashboard/displays',
           token: token,
@@ -132,6 +225,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           : null;
       final displays = displayData is Map ? displayData['displays'] : null;
       if (dashboard is! Map ||
+          dashboard['dailyTotalMoney'] is! num ||
+          dashboard['weeklyTithe'] is! num ||
+          dashboard['weeklyTotalMoney'] is! num ||
+          dashboard['lowStockItems'] is! num ||
+          dashboard['dailyExpenses'] is! num ||
+          dashboard['weeklyMoneyByDay'] is! List ||
+          dashboard['weeklyMoneyByDay'].length != 7 ||
+          dashboard['weeklyMoneyByDay'].any((amount) => amount is! num) ||
           displays is! List ||
           displays.any(
             (display) =>
@@ -201,6 +302,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: const Color(0xFF1565C0),
         foregroundColor: Colors.white,
         actions: [
+          if (kIsWeb && !_isPwaInstalled)
+            IconButton(
+              icon: const Icon(Icons.install_mobile),
+              tooltip: 'Install App',
+              onPressed: _installApp,
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh dashboard',
@@ -269,20 +376,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (selectedDisplays.isEmpty)
                         _buildEmptyDisplayState()
                       else
-                        GridView.count(
-                          crossAxisCount: columns,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: isWide ? 1.5 : 1.25,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          children: _displayOptions
-                              .where(
-                                (display) =>
-                                    selectedDisplays.contains(display.key),
-                              )
-                              .map(_buildMetricCard)
-                              .toList(),
+                        _buildSelectedDisplays(
+                          columns: columns,
+                          isWide: isWide,
                         ),
                     ],
                   ),
@@ -290,6 +386,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
               },
             ),
     );
+  }
+
+  Widget _buildSelectedDisplays({required int columns, required bool isWide}) {
+    final selectedMetrics = _displayOptions
+        .where((display) => selectedDisplays.contains(display.key))
+        .toList();
+    final children = <Widget>[];
+    var index = 0;
+    while (index < selectedMetrics.length) {
+      if (selectedMetrics[index].key == 'weeklyOperatingProfit') {
+        children.add(
+          SizedBox(
+            width: double.infinity,
+            height: 300,
+            child: _buildWeeklyOperatingProfitCard(selectedMetrics[index]),
+          ),
+        );
+        index++;
+      } else {
+        final regularMetrics = <_DashboardMetric>[];
+        while (index < selectedMetrics.length &&
+            selectedMetrics[index].key != 'weeklyOperatingProfit') {
+          regularMetrics.add(selectedMetrics[index]);
+          index++;
+        }
+        children.add(
+          GridView.count(
+            crossAxisCount: columns,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: isWide ? 1.5 : 1.25,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: regularMetrics.map(_buildMetricCard).toList(),
+          ),
+        );
+      }
+
+      if (index < selectedMetrics.length) {
+        children.add(const SizedBox(height: 16));
+      }
+    }
+
+    return Column(children: children);
   }
 
   void _openScreen(Widget screen) {
@@ -403,7 +543,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               SizedBox(height: 4),
               Text(
-                'Display options will be added as dashboard metrics are defined.',
+                'Use Add Display to choose which dashboard cards to show.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Color(0xFF607D8B)),
               ),
@@ -416,9 +556,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildMetricCard(_DashboardMetric metric) {
     final value = dashboardData?[metric.key] ?? 0;
+    final displayValue =
+        metric.key == 'dailyTotalMoney' ||
+            metric.key == 'weeklyTithe' ||
+            metric.key == 'dailyExpenses'
+        ? _formatCurrency(value)
+        : '$value';
     return _buildCard(
       metric.label,
-      '$value',
+      displayValue,
       metric.icon,
       onRemove: isSavingDisplays
           ? null
@@ -426,6 +572,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
               selectedDisplays.where((key) => key != metric.key).toList(),
             ),
     );
+  }
+
+  Widget _buildWeeklyOperatingProfitCard(_DashboardMetric metric) {
+    final amounts = List<num>.from(dashboardData!['weeklyMoneyByDay'] as List);
+    final weekTotal = dashboardData!['weeklyTotalMoney'];
+    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final maxMagnitude = amounts.fold<double>(
+      0,
+      (largest, amount) =>
+          amount.abs().toDouble() > largest ? amount.abs().toDouble() : largest,
+    );
+
+    return _buildCard(
+      metric.label,
+      'Week total: ${_formatCurrency(weekTotal)}',
+      metric.icon,
+      onRemove: isSavingDisplays
+          ? null
+          : () => _saveDisplays(
+              selectedDisplays.where((key) => key != metric.key).toList(),
+            ),
+      additionalContent: SizedBox(
+        height: 150,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 62,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  _buildAxisLabel(_formatCompactCurrency(maxMagnitude)),
+                  _buildAxisLabel(_formatCompactCurrency(maxMagnitude / 2)),
+                  _buildAxisLabel(_formatCurrency(0)),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: CustomPaint(
+                      painter: _WeeklyMoneyChartPainter(
+                        amounts: amounts
+                            .map((amount) => amount.toDouble())
+                            .toList(),
+                        maxMagnitude: maxMagnitude,
+                      ),
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: dayLabels
+                        .map(
+                          (day) => Expanded(
+                            child: Text(
+                              day,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAxisLabel(String label) {
+    return Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(fontSize: 9, color: Colors.blueGrey),
+    );
+  }
+
+  String _formatCurrency(dynamic value) {
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '');
+    if (amount == null || !amount.isFinite) return 'KSh —';
+    final formattedAmount = amount % 1 == 0
+        ? amount.toStringAsFixed(0)
+        : amount.toStringAsFixed(2);
+    return 'KSh $formattedAmount';
+  }
+
+  String _formatCompactCurrency(num value) {
+    final amount = value.toDouble();
+    if (amount.abs() >= 1000000) {
+      return 'KSh ${(amount / 1000000).toStringAsFixed(1)}m';
+    }
+    if (amount.abs() >= 1000) {
+      return 'KSh ${(amount / 1000).toStringAsFixed(1)}k';
+    }
+    return _formatCurrency(amount);
   }
 
   Future<void> _saveDisplays(List<String> displays) async {
@@ -682,6 +930,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String value,
     IconData icon, {
     VoidCallback? onRemove,
+    Widget? additionalContent,
   }) {
     return Card(
       elevation: 2,
@@ -709,6 +958,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                if (additionalContent != null) ...[
+                  const SizedBox(height: 10),
+                  additionalContent,
+                ],
               ],
             ),
           ),
@@ -726,5 +979,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ],
       ),
     );
+  }
+}
+
+class _WeeklyMoneyChartPainter extends CustomPainter {
+  const _WeeklyMoneyChartPainter({
+    required this.amounts,
+    required this.maxMagnitude,
+  });
+
+  final List<double> amounts;
+  final double maxMagnitude;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE3EAF1)
+      ..strokeWidth = 1;
+    for (final fraction in [0.0, 0.5, 1.0]) {
+      final y = size.height * (1 - fraction);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final columnWidth = size.width / amounts.length;
+    final barWidth = math.min(20.0, columnWidth * 0.5);
+    for (var index = 0; index < amounts.length; index++) {
+      final amount = amounts[index];
+      final barHeight = maxMagnitude == 0
+          ? 0.0
+          : (amount.abs() / maxMagnitude * size.height)
+                .clamp(0.0, size.height)
+                .toDouble();
+      if (barHeight == 0) continue;
+
+      final rect = Rect.fromLTWH(
+        columnWidth * index + (columnWidth - barWidth) / 2,
+        size.height - barHeight,
+        barWidth,
+        barHeight,
+      );
+      final barPaint = Paint()
+        ..color = amount < 0 ? Colors.deepOrange : const Color(0xFF1565C0);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, const Radius.circular(4)),
+        barPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WeeklyMoneyChartPainter oldDelegate) {
+    return oldDelegate.maxMagnitude != maxMagnitude ||
+        oldDelegate.amounts != amounts;
   }
 }

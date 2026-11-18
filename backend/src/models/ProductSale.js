@@ -81,6 +81,9 @@ const productSaleSchema = new mongoose.Schema(
     timestamps: true,
     toJSON: {
       transform: (doc, ret) => {
+        if (typeof ret.profitPerUnit === "number") {
+          ret.profitAmount = ret.profitPerUnit * ret.quantity;
+        }
         delete ret.profitPerUnit;
         return ret;
       },

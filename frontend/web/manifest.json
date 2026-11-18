@@ -1,12 +1,13 @@
 {
-    "name": "frontend",
-    "short_name": "frontend",
+    "name": "Business Manager",
+    "short_name": "Business Manager",
+    "id": "./",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "scope": "./",
+    "background_color": "#F4F7FC",
+    "theme_color": "#1565C0",
+    "description": "Business Manager point of sale and business tools.",
     "prefer_related_applications": false,
     "icons": [
         {

@@ -229,6 +229,7 @@ const createProductSale = async (req, res) => {
       const previousQuantity = newQuantity + quantity;
       const sellingPrice = product.sellingPrice;
       const profitPerUnit = sellingPrice - product.costPrice;
+      const profitAmount = profitPerUnit * quantity;
       totalAmount = sellingPrice * quantity;
 
       await StockMovement.create(
@@ -280,6 +281,7 @@ const createProductSale = async (req, res) => {
           quantity,
           sellingPrice: productSale.sellingPrice,
           totalAmount,
+          profitAmount,
         },
       },
     });

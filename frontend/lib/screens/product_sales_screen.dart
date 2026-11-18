@@ -168,6 +168,10 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
             final unitPrice = saleType == 'existing'
                 ? _parseAmount(selectedProduct?['sellingPrice'])
                 : _parseAmount(sellingPriceController.text);
+            final unitCost = saleType == 'existing'
+                ? _parseAmount(selectedProduct?['costPrice'])
+                : _parseAmount(costPriceController.text);
+            final unitProfit = unitPrice - unitCost;
 
             Map<dynamic, dynamic>? findProductByName(String name) {
               final normalizedName = name.trim().toLowerCase();
@@ -339,8 +343,8 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
                 final calculation = responseData is Map
                     ? responseData['calculation']
                     : null;
-                final totalAmount = calculation is Map
-                    ? calculation['totalAmount']
+                final profitAmount = calculation is Map
+                    ? calculation['profitAmount']
                     : null;
 
                 if (!dialogContentContext.mounted) return;
@@ -350,8 +354,8 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
-                      'Product sale recorded. Total: '
-                      '${_formatCurrency(totalAmount ?? unitPrice * saleQuantity)}',
+                      'Product sale recorded. Total profit: '
+                      '${_formatCurrency(profitAmount ?? unitProfit * saleQuantity)}',
                     ),
                   ),
                 );
@@ -435,6 +439,7 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
                             const SizedBox(height: 12),
                             _buildSaleSummary(
                               unitPrice: unitPrice,
+                              unitProfit: unitProfit,
                               quantity: quantity,
                               stockLabel:
                                   'Available stock: ${selectedProduct['quantityInStock'] ?? 0}',
@@ -516,6 +521,7 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
                           const SizedBox(height: 12),
                           _buildSaleSummary(
                             unitPrice: unitPrice,
+                            unitProfit: unitProfit,
                             quantity: quantity,
                             stockLabel:
                                 'Opening stock: ${openingStockController.text.isEmpty ? '—' : openingStockController.text}',
@@ -844,7 +850,7 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         trailing: Text(
-          'Total: ${_formatCurrency(sale['totalAmount'])}',
+          'Total profit: ${_formatCurrency(sale['profitAmount'])}',
           textAlign: TextAlign.end,
           style: const TextStyle(
             fontWeight: FontWeight.bold,
@@ -869,6 +875,7 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
 
   Widget _buildSaleSummary({
     required double unitPrice,
+    required double unitProfit,
     required int quantity,
     required String stockLabel,
   }) {
@@ -881,10 +888,13 @@ class _ProductSalesScreenState extends State<ProductSalesScreen> {
           children: [
             Text('Selling price: ${_formatCurrency(unitPrice)}'),
             const SizedBox(height: 4),
+            Text('Profit per unit: ${_formatCurrency(unitProfit)}'),
+            const SizedBox(height: 4),
             Text(stockLabel),
             const Divider(),
             Text(
-              'Estimated total: ${_formatCurrency(unitPrice * quantity)}',
+              'Estimated total profit: '
+              '${_formatCurrency(unitProfit * quantity)}',
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ],
