@@ -12,6 +12,7 @@ const stockMovementRoutes = require("./routes/stockMovementRoutes");
 const productSaleRoutes = require("./routes/productSaleRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const mtushRoutes = require("./routes/mtushRoutes");
 const cors = require("cors");
 
 
@@ -34,6 +35,7 @@ app.use("/api/businesses", stockMovementRoutes);
 app.use("/api/businesses", productSaleRoutes);
 app.use("/api/businesses", expenseRoutes);
 app.use("/api/businesses", dashboardRoutes);
+app.use("/api/businesses", mtushRoutes);
 
 
 // Basic API welcome route

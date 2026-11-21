@@ -15,6 +15,8 @@ import 'repair_jobs_screen.dart';
 import 'inventory_screen.dart';
 import 'reports_screen.dart';
 import 'settings_screen.dart';
+import 'mtush_management_screen.dart';
+import 'product_sales_screen.dart';
 
 class _DashboardMetric {
   const _DashboardMetric({
@@ -188,6 +190,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         businessInfo = Map<String, dynamic>.from(businessData);
       });
 
+      if (businessData['businessType'] == 'mtush') {
+        if (!mounted) return;
+        setState(() {
+          dashboardData = null;
+          selectedDisplays = [];
+          isLoading = false;
+        });
+        return;
+      }
+
       requestingDashboardStats = true;
       final today = DateTime.now();
       final dayStart = DateTime(today.year, today.month, today.day);
@@ -342,6 +354,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             )
+          : businessInfo?['businessType'] == 'mtush'
+          ? const MtushManagementScreen(showAppBar: false)
           : LayoutBuilder(
               builder: (context, constraints) {
                 final isWide = constraints.maxWidth >= 900;
@@ -392,45 +406,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final selectedMetrics = _displayOptions
         .where((display) => selectedDisplays.contains(display.key))
         .toList();
+    final graphMetric = selectedMetrics
+        .where((metric) => metric.key == 'weeklyOperatingProfit')
+        .firstOrNull;
+    final regularMetrics = selectedMetrics
+        .where((metric) => metric.key != 'weeklyOperatingProfit')
+        .toList();
     final children = <Widget>[];
-    var index = 0;
-    while (index < selectedMetrics.length) {
-      if (selectedMetrics[index].key == 'weeklyOperatingProfit') {
-        children.add(
-          SizedBox(
-            width: double.infinity,
-            height: 300,
-            child: _buildWeeklyOperatingProfitCard(selectedMetrics[index]),
-          ),
-        );
-        index++;
-      } else {
-        final regularMetrics = <_DashboardMetric>[];
-        while (index < selectedMetrics.length &&
-            selectedMetrics[index].key != 'weeklyOperatingProfit') {
-          regularMetrics.add(selectedMetrics[index]);
-          index++;
-        }
-        children.add(
-          GridView.count(
-            crossAxisCount: columns,
-            crossAxisSpacing: 16,
-            mainAxisSpacing: 16,
-            childAspectRatio: isWide
-                ? 1.5
-                : columns == 2
-                ? 0.95
-                : 1.25,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: regularMetrics.map(_buildMetricCard).toList(),
-          ),
-        );
-      }
 
-      if (index < selectedMetrics.length) {
-        children.add(const SizedBox(height: 16));
-      }
+    if (regularMetrics.isNotEmpty) {
+      children.add(
+        GridView.count(
+          crossAxisCount: columns,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          childAspectRatio: isWide
+              ? 1.5
+              : columns == 2
+              ? 0.95
+              : 1.25,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: regularMetrics.map(_buildMetricCard).toList(),
+        ),
+      );
+    }
+
+    if (graphMetric != null) {
+      if (children.isNotEmpty) children.add(const SizedBox(height: 16));
+      children.add(
+        SizedBox(
+          width: double.infinity,
+          height: 300,
+          child: _buildWeeklyOperatingProfitCard(graphMetric),
+        ),
+      );
     }
 
     return Column(children: children);
@@ -735,6 +745,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'accessories_shop': 'Accessories Shop',
       'retail_shop': 'Retail Shop',
       'kinyozi': 'Kinyozi',
+      'mtush': 'Mtush',
       'mixed': 'Mixed Business',
       'other': 'Other',
     };
@@ -898,31 +909,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
             selected: true,
             onTap: () => Navigator.pop(context),
           ),
-          ListTile(
-            leading: const Icon(Icons.point_of_sale),
-            title: const Text('Cyber Services & Sales'),
-            onTap: () => _openScreen(const CyberServicesScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.build),
-            title: const Text('Repair Jobs'),
-            onTap: () => _openScreen(const RepairJobsScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.inventory_2),
-            title: const Text('Inventory'),
-            onTap: () => _openScreen(const InventoryScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.money_off),
-            title: const Text('Expenses'),
-            onTap: () => _openScreen(const ExpensesScreen()),
-          ),
-          ListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: const Text('Reports'),
-            onTap: () => _openScreen(const ReportsScreen()),
-          ),
+          if (businessInfo?['businessType'] == 'mtush') ...[
+            ListTile(
+              leading: const Icon(Icons.point_of_sale),
+              title: const Text('Product sales'),
+              onTap: () => _openScreen(const ProductSalesScreen(isMtush: true)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.inventory_2),
+              title: const Text('Mtush inventory'),
+              onTap: () => _openScreen(const InventoryScreen(isMtush: true)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('Lipa Mdogo Mdogo'),
+              onTap: () =>
+                  _openScreen(const MtushManagementScreen(initialTab: 1)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Mtush reports'),
+              onTap: () =>
+                  _openScreen(const MtushManagementScreen(initialTab: 2)),
+            ),
+          ] else ...[
+            ListTile(
+              leading: const Icon(Icons.point_of_sale),
+              title: const Text('Cyber Services & Sales'),
+              onTap: () => _openScreen(const CyberServicesScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.build),
+              title: const Text('Repair Jobs'),
+              onTap: () => _openScreen(const RepairJobsScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.inventory_2),
+              title: const Text('Inventory'),
+              onTap: () => _openScreen(const InventoryScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.money_off),
+              title: const Text('Expenses'),
+              onTap: () => _openScreen(const ExpensesScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.bar_chart),
+              title: const Text('Reports'),
+              onTap: () => _openScreen(const ReportsScreen()),
+            ),
+          ],
           ListTile(
             leading: const Icon(Icons.settings),
             title: const Text('Settings'),

@@ -19,6 +19,13 @@ const recordStockMovement = async (req, res) => {
     });
   }
 
+  if (type === "stock_in" && req.business.businessType === "mtush") {
+    return res.status(403).json({
+      success: false,
+      message: "Mtush stock intake must be recorded through the purchase APIs",
+    });
+  }
+
   const amount = Number(quantity);
 
   if (!Number.isInteger(amount) || amount <= 0) {
@@ -53,8 +60,16 @@ const recordStockMovement = async (req, res) => {
       if (type === "stock_in") {
         newQuantity = previousQuantity + amount;
       } else {
-        if (amount > previousQuantity) {
-          const error = new Error("Insufficient stock available");
+        const reservedQuantity =
+          req.business.businessType === "mtush"
+            ? item.reservedQuantity || 0
+            : 0;
+        if (amount > previousQuantity - reservedQuantity) {
+          const error = new Error(
+            reservedQuantity
+              ? "Stock reduction cannot consume reserved quantity"
+              : "Insufficient stock available",
+          );
           error.statusCode = 400;
           throw error;
         }

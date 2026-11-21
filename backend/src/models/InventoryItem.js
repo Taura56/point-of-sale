@@ -21,9 +21,50 @@ const inventoryItemSchema = new mongoose.Schema(
         "phone_accessory",
         "phone_part",
         "electronics",
+        "mens_clothing",
+        "womens_clothing",
+        "unisex_clothing",
+        "mens_shoes",
+        "womens_shoes",
         "other",
       ],
       default: "other",
+    },
+
+    gender: {
+      type: String,
+      enum: ["mens", "womens", "unisex", "other"],
+    },
+
+    productType: {
+      type: String,
+      enum: [
+        "trousers",
+        "shirts",
+        "t_shirts",
+        "dresses",
+        "tops",
+        "skirts",
+        "jackets",
+        "sweaters",
+        "shoes",
+        "other",
+      ],
+    },
+
+    size: {
+      type: String,
+      trim: true,
+    },
+
+    color: {
+      type: String,
+      trim: true,
+    },
+
+    condition: {
+      type: String,
+      trim: true,
     },
 
     sku: {
@@ -44,6 +85,13 @@ const inventoryItemSchema = new mongoose.Schema(
     },
 
     quantityInStock: {
+      type: Number,
+      required: true,
+      min: 0,
+      default: 0,
+    },
+
+    reservedQuantity: {
       type: Number,
       required: true,
       min: 0,

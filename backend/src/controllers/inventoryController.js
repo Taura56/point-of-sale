@@ -4,10 +4,16 @@ const StockMovement = require("../models/StockMovement");
 
 // Register a new inventory item
 const createInventoryItem = async (req, res) => {
+  let session;
   try {
     const {
       name,
       category,
+      gender,
+      productType,
+      size,
+      color,
+      condition,
       sku,
       costPrice,
       sellingPrice,
@@ -39,16 +45,77 @@ const createInventoryItem = async (req, res) => {
       });
     }
 
-    const item = await InventoryItem.create({
-      business: req.business._id,
-      name,
-      category,
-      sku,
-      costPrice: cost,
-      sellingPrice: selling,
-      quantityInStock: quantity,
-      reorderLevel: reorder,
-      createdBy: req.user._id,
+    for (const [field, value] of [
+      ["category", category],
+      ["gender", gender],
+      ["productType", productType],
+    ]) {
+      if (
+        value !== undefined &&
+        !InventoryItem.schema.path(field).enumValues.includes(value)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid ${field}`,
+        });
+      }
+    }
+
+    for (const [field, value] of [
+      ["size", size],
+      ["color", color],
+      ["condition", condition],
+    ]) {
+      if (value !== undefined && value !== null && typeof value !== "string") {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid ${field}`,
+        });
+      }
+    }
+
+    session = await mongoose.startSession();
+    let item;
+    await session.withTransaction(async () => {
+      [item] = await InventoryItem.create(
+        [
+          {
+            business: req.business._id,
+            name,
+            category,
+            gender,
+            productType,
+            size,
+            color,
+            condition,
+            sku,
+            costPrice: cost,
+            sellingPrice: selling,
+            quantityInStock: quantity,
+            reorderLevel: reorder,
+            createdBy: req.user._id,
+          },
+        ],
+        { session },
+      );
+
+      if (req.business.businessType === "mtush" && quantity > 0) {
+        await StockMovement.create(
+          [
+            {
+              business: req.business._id,
+              item: item._id,
+              type: "stock_in",
+              quantity,
+              previousQuantity: 0,
+              newQuantity: quantity,
+              reason: "Mtush inventory stock added",
+              recordedBy: req.user._id,
+            },
+          ],
+          { session },
+        );
+      }
     });
 
     return res.status(201).json({
@@ -63,6 +130,8 @@ const createInventoryItem = async (req, res) => {
       success: false,
       message: "Failed to create inventory item",
     });
+  } finally {
+    if (session) await session.endSession();
   }
 };
 
@@ -92,18 +161,44 @@ const getInventoryItems = async (req, res) => {
 // Get inventory items that need restocking
 const getLowStockItems = async (req, res) => {
   try {
+    const stockThreshold =
+      req.business.businessType === "mtush"
+        ? {
+            $expr: {
+              $lte: [
+                {
+                  $subtract: [
+                    "$quantityInStock",
+                    { $ifNull: ["$reservedQuantity", 0] },
+                  ],
+                },
+                "$reorderLevel",
+              ],
+            },
+          }
+        : {
+            $expr: {
+              $lte: ["$quantityInStock", "$reorderLevel"],
+            },
+          };
     const items = await InventoryItem.find({
       business: req.business._id,
       isActive: true,
-      $expr: {
-        $lte: ["$quantityInStock", "$reorderLevel"],
-      },
+      ...stockThreshold,
     }).sort({ quantityInStock: 1 });
+    const responseItems =
+      req.business.businessType === "mtush"
+        ? items.map((item) => ({
+            ...item.toObject(),
+            availableQuantity:
+              item.quantityInStock - (item.reservedQuantity || 0),
+          }))
+        : items;
 
     return res.status(200).json({
       success: true,
       count: items.length,
-      items,
+      items: responseItems,
     });
   } catch (error) {
     console.error("Get low stock items error:", error);
@@ -121,6 +216,11 @@ const updateInventoryItem = async (req, res) => {
   const {
     name,
     category,
+    gender,
+    productType,
+    size,
+    color,
+    condition,
     sku,
     costPrice,
     sellingPrice,
@@ -151,6 +251,35 @@ const updateInventoryItem = async (req, res) => {
       success: false,
       message: "Invalid category",
     });
+  }
+
+  for (const [field, value] of [
+    ["gender", gender],
+    ["productType", productType],
+  ]) {
+    if (
+      value !== undefined &&
+      value !== null &&
+      !InventoryItem.schema.path(field).enumValues.includes(value)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid ${field}`,
+      });
+    }
+  }
+
+  for (const [field, value] of [
+    ["size", size],
+    ["color", color],
+    ["condition", condition],
+  ]) {
+    if (value !== undefined && value !== null && typeof value !== "string") {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid ${field}`,
+      });
+    }
   }
 
   if (
@@ -218,12 +347,25 @@ const updateInventoryItem = async (req, res) => {
 
       if (name !== undefined) item.name = name.trim();
       if (category !== undefined) item.category = category;
+      if (gender !== undefined) item.gender = gender;
+      if (productType !== undefined) item.productType = productType;
+      if (size !== undefined) item.size = size?.trim() ?? "";
+      if (color !== undefined) item.color = color?.trim() ?? "";
+      if (condition !== undefined) item.condition = condition;
       if (sku !== undefined) item.sku = sku?.trim() ?? "";
       if (isActive !== undefined) item.isActive = isActive;
 
       const previousQuantity = item.quantityInStock;
       for (const [field, value] of Object.entries(parsedUpdates)) {
         item[field] = value;
+      }
+
+      if (item.quantityInStock < item.reservedQuantity) {
+        const error = new Error(
+          "Physical stock cannot be lower than reserved stock",
+        );
+        error.statusCode = 400;
+        throw error;
       }
 
       await item.save({ session });

@@ -56,6 +56,18 @@ const createProductSale = async (req, res) => {
     });
   }
 
+  const requestedSellingPrice =
+    body.sellingPrice === undefined ? undefined : parseNumber(body.sellingPrice);
+  if (
+    requestedSellingPrice !== undefined &&
+    (!Number.isFinite(requestedSellingPrice) || requestedSellingPrice < 0)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid selling price",
+    });
+  }
+
   const paymentMethod = body.paymentMethod ?? "cash";
   const paymentStatus = body.paymentStatus ?? "paid";
   const paymentMethods = ProductSale.schema.path("paymentMethod").enumValues;
@@ -87,6 +99,11 @@ const createProductSale = async (req, res) => {
     const name =
       typeof newProduct.name === "string" ? newProduct.name.trim() : "";
     const category = newProduct.category;
+    const gender = newProduct.gender;
+    const productType = newProduct.productType;
+    const size = newProduct.size;
+    const color = newProduct.color;
+    const condition = newProduct.condition;
     const costPrice = parseNumber(newProduct.costPrice);
     const sellingPrice = parseNumber(newProduct.sellingPrice);
     const openingStock = parseNumber(newProduct.openingStock);
@@ -108,7 +125,14 @@ const createProductSale = async (req, res) => {
       !Number.isSafeInteger(openingStock) ||
       openingStock < 1 ||
       !Number.isSafeInteger(reorderLevel) ||
-      reorderLevel < 0
+      reorderLevel < 0 ||
+      (gender !== undefined &&
+      !InventoryItem.schema.path("gender").enumValues.includes(gender)) ||
+      (productType !== undefined &&
+      !InventoryItem.schema.path("productType").enumValues.includes(productType)) ||
+      (size !== undefined && typeof size !== "string") ||
+      (color !== undefined && typeof color !== "string") ||
+      (condition !== undefined && typeof condition !== "string")
     ) {
       return res.status(400).json({
         success: false,
@@ -137,6 +161,11 @@ const createProductSale = async (req, res) => {
     newProductDetails = {
       name,
       category,
+      gender,
+      productType,
+      size,
+      color,
+      condition,
       sku: newProduct.sku,
       costPrice,
       sellingPrice,
@@ -178,6 +207,11 @@ const createProductSale = async (req, res) => {
               business: req.business._id,
               name: newProductDetails.name,
               category: newProductDetails.category,
+              gender: newProductDetails.gender,
+              productType: newProductDetails.productType,
+              size: newProductDetails.size,
+              color: newProductDetails.color,
+              condition: newProductDetails.condition,
               sku: newProductDetails.sku,
               costPrice: newProductDetails.costPrice,
               sellingPrice: newProductDetails.sellingPrice,
@@ -189,6 +223,24 @@ const createProductSale = async (req, res) => {
           { session },
         );
         product = createdProduct;
+
+        if (req.business.businessType === "mtush") {
+          await StockMovement.create(
+            [
+              {
+                business: req.business._id,
+                item: product._id,
+                type: "stock_in",
+                quantity: newProductDetails.openingStock,
+                previousQuantity: 0,
+                newQuantity: newProductDetails.openingStock,
+                reason: "New Mtush product added during sale",
+                recordedBy: req.user._id,
+              },
+            ],
+            { session },
+          );
+        }
       } else {
         product = await InventoryItem.findOne({
           _id: itemId,
@@ -208,7 +260,17 @@ const createProductSale = async (req, res) => {
           _id: product._id,
           business: req.business._id,
           isActive: true,
-          quantityInStock: { $gte: quantity },
+          $expr: {
+            $gte: [
+              {
+                $subtract: [
+                  "$quantityInStock",
+                  { $ifNull: ["$reservedQuantity", 0] },
+                ],
+              },
+              quantity,
+            ],
+          },
         },
         {
           $inc: { quantityInStock: -quantity },
@@ -227,7 +289,7 @@ const createProductSale = async (req, res) => {
 
       const newQuantity = product.quantityInStock;
       const previousQuantity = newQuantity + quantity;
-      const sellingPrice = product.sellingPrice;
+      const sellingPrice = requestedSellingPrice ?? product.sellingPrice;
       const profitPerUnit = sellingPrice - product.costPrice;
       const profitAmount = profitPerUnit * quantity;
       totalAmount = sellingPrice * quantity;

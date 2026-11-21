@@ -3,8 +3,12 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class AccountCreationScreen extends StatefulWidget {
-  const AccountCreationScreen({super.key});
+  final String businessType;
+
+  const AccountCreationScreen({super.key, required this.businessType});
 
   @override
   State<AccountCreationScreen> createState() => _AccountCreationScreenState();
@@ -19,7 +23,14 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  String _businessType = 'mixed';
+  late String _businessType;
+
+  @override
+  void initState() {
+    super.initState();
+    _businessType = widget.businessType;
+  }
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -39,6 +50,8 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
         businessName: _businessNameController.text.trim(),
         businessType: _businessType,
       );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('hasCompletedOnboarding', true);
 
       if (!mounted) return;
       setState(() => _isRegistered = true);
@@ -232,6 +245,7 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
                 child: Text('Retail shop'),
               ),
               DropdownMenuItem(value: 'kinyozi', child: Text('Kinyozi')),
+              DropdownMenuItem(value: 'mtush', child: Text('Mtush')),
               DropdownMenuItem(value: 'mixed', child: Text('Mixed business')),
               DropdownMenuItem(value: 'other', child: Text('Other')),
             ],

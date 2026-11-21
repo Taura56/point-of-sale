@@ -16,6 +16,7 @@ const businessSchema = new mongoose.Schema(
         "accessories_shop",
         "retail_shop",
         "kinyozi",
+        "mtush",
         "mixed",
         "other",
       ],

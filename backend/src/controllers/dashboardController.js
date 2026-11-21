@@ -5,7 +5,7 @@ const Expense = require("../models/Expense");
 const InventoryItem = require("../models/InventoryItem");
 const RepairJob = require("../models/RepairJob");
 
-const dashboardDisplayKeys = [
+const defaultDashboardDisplayKeys = [
   "dailyTotalMoney",
   "lowStockItems",
   "weeklyTithe",
@@ -13,14 +13,66 @@ const dashboardDisplayKeys = [
   "dailyExpenses",
 ];
 
+const mtushDashboardDisplayKeys = [
+  "mtushDailySales",
+  "mtushTotalRevenue",
+  "mtushInventoryValue",
+  "mtushReservedStock",
+  "mtushLowStock",
+  "mtushOutstandingBalances",
+  "mtushWeeklyTithe",
+  "mtushWeeklyOperatingProfit",
+];
+
+const legacyMtushDashboardDisplayKeys = [
+  "mtushCostOfGoods",
+  "mtushGrossProfit",
+  "mtushAvailableStock",
+  "mtushPendingOrders",
+  "mtushAwaitingCollection",
+  "mtushCompletedCollections",
+];
+
+const getDashboardDisplayKeys = (business) =>
+  business.businessType === "mtush"
+    ? mtushDashboardDisplayKeys
+    : defaultDashboardDisplayKeys;
+
 const getDashboardDisplays = async (req, res) => {
   const preference = req.user.dashboardDisplayPreferences?.find(
     (entry) => entry.business.toString() === req.business._id.toString()
   );
-  const savedDisplays = preference ? preference.displays : ["dailyTotalMoney"];
+  const isMtush = req.business.businessType === "mtush";
+  const allowedDisplays = getDashboardDisplayKeys(req.business);
+  const savedDisplays = preference
+    ? preference.displays
+    : isMtush
+    ? [
+        "mtushDailySales",
+        "mtushInventoryValue",
+        "mtushReservedStock",
+        "mtushOutstandingBalances",
+        "mtushWeeklyTithe",
+        "mtushWeeklyOperatingProfit",
+      ]
+    : ["dailyTotalMoney"];
   const displays = savedDisplays.filter((display) =>
-    dashboardDisplayKeys.includes(display)
+    allowedDisplays.includes(display)
   );
+  if (
+    isMtush &&
+    preference?.displays.some((display) =>
+      legacyMtushDashboardDisplayKeys.includes(display)
+    )
+  ) {
+    for (const display of [
+      "mtushReservedStock",
+      "mtushWeeklyTithe",
+      "mtushWeeklyOperatingProfit",
+    ]) {
+      if (!displays.includes(display)) displays.push(display);
+    }
+  }
 
   return res.status(200).json({
     success: true,
@@ -32,13 +84,14 @@ const getDashboardDisplays = async (req, res) => {
 
 const updateDashboardDisplays = async (req, res) => {
   const { displays } = req.body || {};
+  const allowedDisplays = getDashboardDisplayKeys(req.business);
 
   if (
     !Array.isArray(displays) ||
     displays.some(
       (display) =>
         typeof display !== "string" ||
-        !dashboardDisplayKeys.includes(display)
+        !allowedDisplays.includes(display)
     )
   ) {
     return res.status(400).json({

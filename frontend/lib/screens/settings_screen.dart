@@ -17,6 +17,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'accessories_shop': 'Accessories Shop',
     'retail_shop': 'Retail Shop',
     'kinyozi': 'Kinyozi',
+    'mtush': 'Mtush',
     'mixed': 'Mixed Business',
     'other': 'Other',
   };
@@ -160,17 +161,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: const OutlineInputBorder(),
-      enabledBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFFB0BEC5)),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF1565C0), width: 2),
-      ),
-      floatingLabelStyle: const TextStyle(color: Color(0xFF1565C0)),
-    );
+    return InputDecoration(labelText: label);
   }
 
   Widget _sectionCard({

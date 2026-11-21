@@ -4,7 +4,9 @@ import '../services/api_service.dart';
 import '../services/token_service.dart';
 
 class InventoryScreen extends StatefulWidget {
-  const InventoryScreen({super.key});
+  const InventoryScreen({super.key, this.isMtush = false});
+
+  final bool isMtush;
 
   @override
   State<InventoryScreen> createState() => _InventoryScreenState();
@@ -15,6 +17,32 @@ class _InventoryScreenState extends State<InventoryScreen> {
     'phone_accessory': 'Phone Accessory',
     'phone_part': 'Phone Part',
     'electronics': 'Electronics',
+    'other': 'Other',
+  };
+  static const Map<String, String> _mtushCategories = {
+    'mens_clothing': "Men's clothing",
+    'womens_clothing': "Women's clothing",
+    'unisex_clothing': 'Unisex clothing',
+    'mens_shoes': "Men's shoes",
+    'womens_shoes': "Women's shoes",
+    'other': 'Other',
+  };
+  static const Map<String, String> _mtushGenders = {
+    'mens': 'Men',
+    'womens': 'Women',
+    'unisex': 'Unisex',
+    'other': 'Other',
+  };
+  static const Map<String, String> _mtushProductTypes = {
+    'trousers': 'Trousers',
+    'shirts': 'Shirts',
+    't_shirts': 'T-shirts',
+    'dresses': 'Dresses',
+    'tops': 'Tops',
+    'skirts': 'Skirts',
+    'jackets': 'Jackets',
+    'sweaters': 'Sweaters',
+    'shoes': 'Shoes',
     'other': 'Other',
   };
 
@@ -75,17 +103,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
   }
 
   InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      border: const OutlineInputBorder(),
-      enabledBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFFB0BEC5)),
-      ),
-      focusedBorder: const OutlineInputBorder(
-        borderSide: BorderSide(color: Color(0xFF1565C0), width: 2),
-      ),
-      floatingLabelStyle: const TextStyle(color: Color(0xFF1565C0)),
-    );
+    return InputDecoration(labelText: label);
   }
 
   Future<void> _showItemDialog({Map<dynamic, dynamic>? product}) async {
@@ -108,10 +126,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final reorderLevelController = TextEditingController(
       text: product?['reorderLevel']?.toString() ?? '5',
     );
+    final sizeController = TextEditingController(
+      text: product?['size']?.toString() ?? '',
+    );
+    final colorController = TextEditingController(
+      text: product?['color']?.toString() ?? '',
+    );
+    final conditionController = TextEditingController(
+      text: product?['condition']?.toString() ?? '',
+    );
     final itemId = product?['_id']?.toString() ?? product?['id']?.toString();
+    final categories = widget.isMtush ? _mtushCategories : _categories;
     var selectedCategory =
-        _categories.containsKey(product?['category']?.toString())
+        categories.containsKey(product?['category']?.toString())
         ? product!['category'].toString()
+        : 'other';
+    var selectedGender =
+        _mtushGenders.containsKey(product?['gender']?.toString())
+        ? product!['gender'].toString()
+        : 'other';
+    var selectedProductType =
+        _mtushProductTypes.containsKey(product?['productType']?.toString())
+        ? product!['productType'].toString()
         : 'other';
     var isSaving = false;
     String? formError;
@@ -167,6 +203,13 @@ class _InventoryScreenState extends State<InventoryScreen> {
                 ),
                 'quantityInStock': int.parse(quantityController.text.trim()),
                 'reorderLevel': int.parse(reorderLevelController.text.trim()),
+                if (widget.isMtush) ...{
+                  'gender': selectedGender,
+                  'productType': selectedProductType,
+                  'size': sizeController.text.trim(),
+                  'color': colorController.text.trim(),
+                  'condition': conditionController.text.trim(),
+                },
               };
 
               if (product == null) {
@@ -241,7 +284,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         initialValue: selectedCategory,
                         isExpanded: true,
                         decoration: _inputDecoration('Category'),
-                        items: _categories.entries
+                        items: categories.entries
                             .map(
                               (entry) => DropdownMenuItem(
                                 value: entry.key,
@@ -260,6 +303,72 @@ class _InventoryScreenState extends State<InventoryScreen> {
                                 }
                               },
                       ),
+                      if (widget.isMtush) ...[
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedGender,
+                          isExpanded: true,
+                          decoration: _inputDecoration('Gender'),
+                          items: _mtushGenders.entries
+                              .map(
+                                (entry) => DropdownMenuItem(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: isSaving
+                              ? null
+                              : (value) {
+                                  if (value != null) {
+                                    setDialogState(
+                                      () => selectedGender = value,
+                                    );
+                                  }
+                                },
+                        ),
+                        const SizedBox(height: 12),
+                        DropdownButtonFormField<String>(
+                          initialValue: selectedProductType,
+                          isExpanded: true,
+                          decoration: _inputDecoration('Product type'),
+                          items: _mtushProductTypes.entries
+                              .map(
+                                (entry) => DropdownMenuItem(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: isSaving
+                              ? null
+                              : (value) {
+                                  if (value != null) {
+                                    setDialogState(
+                                      () => selectedProductType = value,
+                                    );
+                                  }
+                                },
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: sizeController,
+                          enabled: !isSaving,
+                          decoration: _inputDecoration('Size (optional)'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: colorController,
+                          enabled: !isSaving,
+                          decoration: _inputDecoration('Colour (optional)'),
+                        ),
+                        const SizedBox(height: 12),
+                        TextFormField(
+                          controller: conditionController,
+                          enabled: !isSaving,
+                          decoration: _inputDecoration('Condition (optional)'),
+                        ),
+                      ],
                       const SizedBox(height: 12),
                       TextFormField(
                         controller: skuController,
@@ -293,7 +402,15 @@ class _InventoryScreenState extends State<InventoryScreen> {
                         controller: quantityController,
                         enabled: !isSaving,
                         keyboardType: TextInputType.number,
-                        decoration: _inputDecoration('Quantity in Stock'),
+                        decoration: _inputDecoration(
+                          widget.isMtush && product == null
+                              ? 'Opening stock quantity'
+                              : 'Quantity in Stock',
+                        ).copyWith(
+                          helperText: widget.isMtush
+                              ? 'Changes here update inventory stock.'
+                              : null,
+                        ),
                         validator: (value) =>
                             validateWholeNumber(value, 'stock quantity'),
                       ),
@@ -348,6 +465,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
       sellingPriceController.dispose();
       quantityController.dispose();
       reorderLevelController.dispose();
+      sizeController.dispose();
+      colorController.dispose();
+      conditionController.dispose();
     });
   }
 
@@ -489,6 +609,28 @@ class _InventoryScreenState extends State<InventoryScreen> {
     final name = product['name']?.toString().trim();
     final category = product['category']?.toString().replaceAll('_', ' ');
     final quantity = product['quantityInStock']?.toString() ?? '—';
+    final reserved = widget.isMtush
+        ? _parseQuantity(product['reservedQuantity'])
+        : 0;
+    final available = widget.isMtush
+        ? (_parseQuantity(product['quantityInStock']) - reserved).clamp(
+            0,
+            1 << 30,
+          )
+        : null;
+    final productDetails = <String>[
+      if (category != null && category.isNotEmpty) category,
+      if (widget.isMtush && product['gender'] != null)
+        product['gender'].toString(),
+      if (widget.isMtush && product['productType'] != null)
+        product['productType'].toString().replaceAll('_', ' '),
+      if (widget.isMtush && product['size']?.toString().isNotEmpty == true)
+        'Size ${product['size']}',
+      if (widget.isMtush && product['color']?.toString().isNotEmpty == true)
+        product['color'].toString(),
+      if (widget.isMtush && product['condition']?.toString().isNotEmpty == true)
+        product['condition'].toString(),
+    ];
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -508,8 +650,9 @@ class _InventoryScreenState extends State<InventoryScreen> {
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         subtitle: Text(
-          '${category == null || category.isEmpty ? 'Product' : category}\n'
-          'Stock: $quantity',
+          '${productDetails.isEmpty ? 'Product' : productDetails.join(' • ')}\n'
+          'Stock: $quantity'
+          '${widget.isMtush ? ' • Available: $available • Reserved: $reserved' : ''}',
         ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
@@ -555,6 +698,11 @@ class _InventoryScreenState extends State<InventoryScreen> {
         ),
       ),
     );
+  }
+
+  int _parseQuantity(dynamic value) {
+    if (value is int) return value;
+    return int.tryParse(value?.toString() ?? '') ?? 0;
   }
 
   String _formatCurrency(dynamic value) {
