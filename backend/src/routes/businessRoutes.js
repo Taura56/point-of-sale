@@ -15,6 +15,10 @@ const {
   getBusinessSettings,
   updateBusinessSettings,
 } = require("../controllers/settingsController");
+const {
+  getBusinessModules,
+  updateBusinessModules,
+} = require("../controllers/businessModuleController");
 
 
 const router = express.Router();
@@ -60,6 +64,22 @@ router.patch(
   authorizeBusiness,
   authorizeRoles("owner"),
   updateBusinessSettings
+);
+
+// Mixed Business module configuration. Only the business owner can change it.
+router.get(
+  "/:businessId/modules",
+  protect,
+  authorizeBusiness,
+  getBusinessModules
+);
+
+router.patch(
+  "/:businessId/modules",
+  protect,
+  authorizeBusiness,
+  authorizeRoles("owner"),
+  updateBusinessModules
 );
 
 // Add a manager or employee to a business
