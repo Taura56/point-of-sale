@@ -18,10 +18,26 @@ const businessSchema = new mongoose.Schema(
         "kinyozi",
         "mtush",
         "mixed",
+        // Kept temporarily so existing legacy records remain readable.
+        // It will no longer be offered during registration or in Settings.
         "other",
       ],
       default: "mixed",
       required: true,
+    },
+
+    // Mixed businesses can enable multiple modules. Standalone businesses
+    // always resolve to their single businessType module.
+    enabledModules: {
+      type: [String],
+      default: function () {
+        if (this.businessType === "mixed") {
+          return ["cybercafe", "phone_repair"];
+        }
+        return this.businessType && this.businessType !== "other"
+          ? [this.businessType]
+          : [];
+      },
     },
 
     owner: {
