@@ -747,7 +747,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'kinyozi': 'Kinyozi',
       'mtush': 'Mtush',
       'mixed': 'Mixed Business',
-      'other': 'Other',
     };
     return labels[type] ?? 'Business';
   }
