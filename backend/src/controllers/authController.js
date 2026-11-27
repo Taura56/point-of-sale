@@ -1,12 +1,14 @@
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Business = require("../models/Business");
+const { BUSINESS_MODULE_KEYS } = require("../constants/businessModules");
 const jwt = require("jsonwebtoken");
 
 // Register a new user and business
 const register = async (req, res) => {
   const { fullName, email, phone, password, businessName, businessType } =
     req.body;
+  const requestedModules = req.body?.enabledModules;
 
   // Validate required fields
   if (
@@ -19,6 +21,29 @@ const register = async (req, res) => {
     return res.status(400).json({
       success: false,
       message: "Please provide all required registration fields",
+    });
+  }
+
+  if (
+    !["cybercafe", "phone_repair", "accessories_shop", "retail_shop", "kinyozi", "mtush", "mixed"].includes(businessType)
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Please choose one of the supported business types.",
+    });
+  }
+
+  if (
+    requestedModules !== undefined &&
+    (!Array.isArray(requestedModules) ||
+      requestedModules.some(
+        (module) =>
+          typeof module !== "string" || !BUSINESS_MODULE_KEYS.includes(module)
+      ))
+  ) {
+    return res.status(400).json({
+      success: false,
+      message: "Please choose valid business modules.",
     });
   }
 
