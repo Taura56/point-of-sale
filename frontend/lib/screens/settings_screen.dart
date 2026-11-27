@@ -19,7 +19,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'kinyozi': 'Kinyozi',
     'mtush': 'Mtush',
     'mixed': 'Mixed Business',
-    'other': 'Other',
   };
 
   final _businessNameController = TextEditingController();
@@ -35,6 +34,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   List<dynamic> members = [];
   String _businessType = 'mixed';
+  List<String> _enabledModules = [];
+  bool isSavingModules = false;
   String? _businessId;
   String? _currentUserId;
   String? _role;
@@ -103,6 +104,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       final role = settingsData['role']?.toString();
+      final businessType = businessData['businessType']?.toString();
+      var loadedModules = <String>[];
+      if (businessType == 'mixed') {
+        final modulesResponse = await ApiService.get(
+          '/businesses/$businessId/modules',
+          token: token,
+        );
+        final modulesData = modulesResponse is Map
+            ? modulesResponse['data']
+            : null;
+        final configuredModules = modulesData is Map
+            ? modulesData['enabledModules']
+            : null;
+        if (configuredModules is List) {
+          loadedModules = configuredModules.map((value) => value.toString()).toList();
+        }
+      }
       var loadedMembers = <dynamic>[];
       String? loadedTeamError;
 
@@ -136,10 +154,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _businessEmailController.text = businessData['email']?.toString() ?? '';
         _businessLocationController.text =
             businessData['location']?.toString() ?? '';
-        final businessType = businessData['businessType']?.toString();
         _businessType = _businessTypes.containsKey(businessType)
             ? businessType!
-            : 'other';
+            : 'mixed';
+        _enabledModules = loadedModules;
         _fullNameController.text = userData['fullName']?.toString() ?? '';
         _emailController.text = userData['email']?.toString() ?? '';
         _phoneController.text = userData['phone']?.toString() ?? '';
@@ -264,7 +282,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       await ApiService.patch('/businesses/$businessId/settings', {
         'name': _businessNameController.text.trim(),
-        'businessType': _businessType,
         'phone': _businessPhoneController.text.trim(),
         'email': businessEmail,
         'location': _businessLocationController.text.trim(),
@@ -280,6 +297,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
         });
       }
     }
+  }
+
+  Future<void> _saveBusinessModules() async {
+    if (!_isOwner) return;
+    setState(() => isSavingModules = true);
+    try {
+      final token = await TokenService.getToken();
+      final businessId = _businessId;
+      if (token == null || businessId == null) {
+        throw Exception('Login information not found. Please log in again.');
+      }
+      await ApiService.patch('/businesses/$businessId/modules', {
+        'enabledModules': _enabledModules,
+      }, token: token);
+      _showMessage('Business modules updated. Your existing records are preserved.');
+    } catch (error) {
+      _showMessage(_formatError(error));
+      await loadSettings();
+    } finally {
+      if (mounted) setState(() => isSavingModules = false);
+    }
+  }
+
+  Widget _buildBusinessModulesSection() {
+    if (_businessType != 'mixed') return const SizedBox.shrink();
+    const modules = <Map<String, String>>[
+      {'key': 'cybercafe', 'name': 'Cyber Café', 'description': 'Cyber services and sales'},
+      {'key': 'phone_repair', 'name': 'Phone Repair', 'description': 'Repair jobs and customer devices'},
+      {'key': 'accessories_shop', 'name': 'Accessories Shop', 'description': 'Accessories stock and sales'},
+      {'key': 'retail_shop', 'name': 'Retail Shop', 'description': 'Retail inventory and sales'},
+      {'key': 'kinyozi', 'name': 'Kinyozi', 'description': 'Barbershop services and sales'},
+      {'key': 'mtush', 'name': 'Mtush', 'description': 'Clothing, shoes, stock and customer balances'},
+    ];
+    return _sectionCard(
+      title: 'Business Modules',
+      description: _isOwner
+          ? 'Add or remove business areas at any time. Removing a module hides its workspace but does not delete its records.'
+          : 'Only the business owner can add or remove modules.',
+      children: [
+        ...modules.map((module) {
+          final key = module['key']!;
+          return CheckboxListTile(
+            value: _enabledModules.contains(key),
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(module['name']!),
+            subtitle: Text(module['description']!),
+            onChanged: !_isOwner || isSavingModules
+                ? null
+                : (enabled) {
+                    setState(() {
+                      if (enabled == true) {
+                        if (!_enabledModules.contains(key)) _enabledModules.add(key);
+                      } else {
+                        _enabledModules.remove(key);
+                      }
+                    });
+                  },
+          );
+        }),
+        if (_isOwner) ...[
+          const SizedBox(height: 12),
+          _saveButton(
+            label: 'Save Business Modules',
+            isSaving: isSavingModules,
+            onPressed: _saveBusinessModules,
+          ),
+        ],
+      ],
+    );
   }
 
   Future<void> _saveAccountProfile() async {
@@ -825,26 +912,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       decoration: _inputDecoration('Business Name'),
                     ),
                     const SizedBox(height: 12),
-                    DropdownButtonFormField<String>(
-                      initialValue: _businessType,
+                    InputDecorator(
                       decoration: _inputDecoration('Business Type'),
-                      items: _businessTypes.entries
-                          .map(
-                            (entry) => DropdownMenuItem(
-                              value: entry.key,
-                              child: Text(entry.value),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: readOnlyBusiness || isSavingBusiness
-                          ? null
-                          : (value) {
-                              if (value != null) {
-                                setState(() {
-                                  _businessType = value;
-                                });
-                              }
-                            },
+                      child: Text(_businessTypes[_businessType] ?? 'Business'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -877,6 +947,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ],
                 ),
+                _buildBusinessModulesSection(),
                 _sectionCard(
                   title: 'Account Profile',
                   description: 'Update your personal account information.',
