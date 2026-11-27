@@ -28,7 +28,6 @@ class _BusinessTypeScreenState extends State<BusinessTypeScreen> {
     {'type': 'kinyozi', 'name': 'Kinyozi', 'icon': Icons.content_cut},
     {'type': 'mtush', 'name': 'Mtush', 'icon': Icons.checkroom},
     {'type': 'mixed', 'name': 'Mixed Business', 'icon': Icons.business},
-    {'type': 'other', 'name': 'Other', 'icon': Icons.more_horiz},
   ];
 
   void _continue() {
