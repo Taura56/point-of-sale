@@ -943,7 +943,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ListTile(
               leading: const Icon(Icons.content_cut),
               title: const Text('Kinyozi'),
-              onTap: () => _openScreen(const ModuleScreen(title: 'Kinyozi')),
+              onTap: () => _openScreen(const ModuleScreen(title: 'Kinyozi', icon: Icons.content_cut)),
             ),
           if (_hasModule('mtush')) ...[
             ListTile(
