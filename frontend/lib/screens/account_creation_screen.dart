@@ -247,7 +247,6 @@ class _AccountCreationScreenState extends State<AccountCreationScreen> {
               DropdownMenuItem(value: 'kinyozi', child: Text('Kinyozi')),
               DropdownMenuItem(value: 'mtush', child: Text('Mtush')),
               DropdownMenuItem(value: 'mixed', child: Text('Mixed business')),
-              DropdownMenuItem(value: 'other', child: Text('Other')),
             ],
             onChanged: (value) {
               if (value != null) setState(() => _businessType = value);
