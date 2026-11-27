@@ -17,15 +17,15 @@ const getEnabledBusinessModules = (business) => {
       : [];
   }
 
-  const configured = Array.isArray(business.enabledModules)
-    ? business.enabledModules
-    : [];
+  // A missing field is a legacy record. An explicit empty array means
+  // the owner intentionally disabled every module.
+  if (!Array.isArray(business.enabledModules)) {
+    return ["cybercafe", "phone_repair"];
+  }
 
-  // Backward compatibility for existing Mixed accounts created before
-  // enabledModules was introduced.
-  return configured.length
-    ? [...new Set(configured.filter((key) => BUSINESS_MODULE_KEYS.includes(key)))]
-    : ["cybercafe", "phone_repair"];
+  return [...new Set(
+    business.enabledModules.filter((key) => BUSINESS_MODULE_KEYS.includes(key))
+  )];
 };
 
 module.exports = {
