@@ -75,6 +75,9 @@ const register = async (req, res) => {
       const business = new Business({
         name: businessName,
         businessType,
+        ...(businessType === "mixed" && requestedModules !== undefined
+          ? { enabledModules: [...new Set(requestedModules)] }
+          : {}),
         owner: user._id,
       });
 
