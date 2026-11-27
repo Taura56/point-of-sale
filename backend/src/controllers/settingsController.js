@@ -11,6 +11,7 @@ const getBusinessSettings = async (req, res) => {
         id: business._id,
         name: business.name,
         businessType: business.businessType,
+        enabledModules: getEnabledBusinessModules(business),
         phone: business.phone,
         email: business.email,
         location: business.location,
