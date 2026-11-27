@@ -17,6 +17,7 @@ import 'reports_screen.dart';
 import 'settings_screen.dart';
 import 'mtush_management_screen.dart';
 import 'product_sales_screen.dart';
+import 'module_screen.dart';
 
 class _DashboardMetric {
   const _DashboardMetric({
@@ -68,6 +69,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Map<String, dynamic>? dashboardData;
   Map<String, dynamic>? businessInfo;
+  List<String> enabledModules = [];
   List<String> selectedDisplays = [];
   String? businessName;
   bool isLoading = true;
@@ -188,6 +190,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         businessName = name.trim();
         businessInfo = Map<String, dynamic>.from(businessData);
+        enabledModules = List<String>.from(
+          (businessData['enabledModules'] as List?)?.map((value) => value.toString()) ?? const [],
+        );
       });
 
       if (businessData['businessType'] == 'mtush') {
@@ -259,6 +264,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() {
         businessName = name.trim();
         businessInfo = Map<String, dynamic>.from(businessData);
+        enabledModules = List<String>.from(
+          (businessData['enabledModules'] as List?)?.map((value) => value.toString()) ?? const [],
+        );
         dashboardData = Map<String, dynamic>.from(dashboard);
         selectedDisplays = List<String>.from(displays);
         isLoading = false;
@@ -869,13 +877,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // Builds the navigation drawer.
+  bool _hasModule(String module) {
+    final type = businessInfo?['businessType']?.toString();
+    if (type != 'mixed') return type == module;
+    return enabledModules.contains(module);
+  }
+
   Widget _buildDrawer() {
     return Drawer(
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(color: Color(0xFF1565C0)),
+            decoration: const BoxDecoration(color: Color(0xFF1565C0)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -887,18 +901,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 10),
-                Text(
+                const Text(
                   'Business Manager',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 21,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(color: Colors.white, fontSize: 21, fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  'Business Management System',
-                  style: TextStyle(color: Colors.white70),
-                ),
+                const Text('Business Management System', style: TextStyle(color: Colors.white70)),
               ],
             ),
           ),
@@ -908,45 +915,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
             selected: true,
             onTap: () => Navigator.pop(context),
           ),
-          if (businessInfo?['businessType'] == 'mtush') ...[
+          if (_hasModule('cybercafe'))
             ListTile(
-              leading: const Icon(Icons.point_of_sale),
-              title: const Text('Product sales'),
-              onTap: () => _openScreen(const ProductSalesScreen(isMtush: true)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory_2),
-              title: const Text('Mtush inventory'),
-              onTap: () => _openScreen(const InventoryScreen(isMtush: true)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.payments_outlined),
-              title: const Text('Lipa Mdogo Mdogo'),
-              onTap: () =>
-                  _openScreen(const MtushManagementScreen(initialTab: 1)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text('Mtush reports'),
-              onTap: () =>
-                  _openScreen(const MtushManagementScreen(initialTab: 2)),
-            ),
-          ] else ...[
-            ListTile(
-              leading: const Icon(Icons.point_of_sale),
+              leading: const Icon(Icons.computer),
               title: const Text('Cyber Services & Sales'),
               onTap: () => _openScreen(const CyberServicesScreen()),
             ),
+          if (_hasModule('phone_repair'))
             ListTile(
               leading: const Icon(Icons.build),
               title: const Text('Repair Jobs'),
               onTap: () => _openScreen(const RepairJobsScreen()),
             ),
+          if (_hasModule('accessories_shop'))
+            ListTile(
+              leading: const Icon(Icons.headphones),
+              title: const Text('Accessories Sales'),
+              onTap: () => _openScreen(const ProductSalesScreen()),
+            ),
+          if (_hasModule('retail_shop'))
+            ListTile(
+              leading: const Icon(Icons.store),
+              title: const Text('Retail Sales'),
+              onTap: () => _openScreen(const ProductSalesScreen()),
+            ),
+          if (_hasModule('kinyozi'))
+            ListTile(
+              leading: const Icon(Icons.content_cut),
+              title: const Text('Kinyozi'),
+              onTap: () => _openScreen(const ModuleScreen(title: 'Kinyozi')),
+            ),
+          if (_hasModule('mtush')) ...[
+            ListTile(
+              leading: const Icon(Icons.checkroom),
+              title: const Text('Mtush Management'),
+              onTap: () => _openScreen(const MtushManagementScreen()),
+            ),
+            ListTile(
+              leading: const Icon(Icons.point_of_sale),
+              title: const Text('Mtush Product Sales'),
+              onTap: () => _openScreen(const ProductSalesScreen(isMtush: true)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.inventory_2),
+              title: const Text('Mtush Inventory'),
+              onTap: () => _openScreen(const InventoryScreen(isMtush: true)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.payments_outlined),
+              title: const Text('Lipa Mdogo Mdogo'),
+              onTap: () => _openScreen(const MtushManagementScreen(initialTab: 1)),
+            ),
+          ],
+          if (_hasModule('accessories_shop') || _hasModule('retail_shop'))
             ListTile(
               leading: const Icon(Icons.inventory_2),
               title: const Text('Inventory'),
               onTap: () => _openScreen(const InventoryScreen()),
             ),
+          if (businessInfo?['businessType'] != 'mixed' || enabledModules.isNotEmpty) ...[
             ListTile(
               leading: const Icon(Icons.money_off),
               title: const Text('Expenses'),
