@@ -840,7 +840,6 @@ class _MtushManagementScreenState extends State<MtushManagementScreen> {
       'kinyozi': 'Kinyozi',
       'mtush': 'Mtush',
       'mixed': 'Mixed Business',
-      'other': 'Other',
     };
     return labels[type] ?? 'Business';
   }
